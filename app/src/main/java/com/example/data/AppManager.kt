@@ -198,6 +198,12 @@ class AppManager(private val context: Context) {
     }
 
     fun openSettings() {
+        val tvSettingsPkg = "com.android.tv.settings"
+        val standardSettingsPkg = "com.android.settings"
+
+        if (launchApp(tvSettingsPkg)) return
+        if (launchApp(standardSettingsPkg)) return
+
         try {
             val intent = Intent(Settings.ACTION_SETTINGS).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -209,6 +215,12 @@ class AppManager(private val context: Context) {
     }
 
     fun openWifiSettings() {
+        val tvSettingsPkg = "com.android.tv.settings"
+        val standardSettingsPkg = "com.android.settings"
+
+        if (isAppInstalled(tvSettingsPkg) && launchApp(tvSettingsPkg)) return
+        if (isAppInstalled(standardSettingsPkg) && launchApp(standardSettingsPkg)) return
+
         try {
             val intent = Intent(Settings.ACTION_WIFI_SETTINGS).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -220,6 +232,12 @@ class AppManager(private val context: Context) {
     }
 
     fun openBluetoothSettings() {
+        val tvSettingsPkg = "com.android.tv.settings"
+        val standardSettingsPkg = "com.android.settings"
+
+        if (isAppInstalled(tvSettingsPkg) && launchApp(tvSettingsPkg)) return
+        if (isAppInstalled(standardSettingsPkg) && launchApp(standardSettingsPkg)) return
+
         try {
             val intent = Intent(Settings.ACTION_BLUETOOTH_SETTINGS).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

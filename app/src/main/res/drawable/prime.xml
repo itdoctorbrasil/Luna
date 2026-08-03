@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="128dp"
+    android:height="128dp"
+    android:viewportWidth="128"
+    android:viewportHeight="128">
+    
+    <!-- Prime Blue rounded background card -->
+    <path
+        android:fillColor="#00A8E1"
+        android:pathData="M 16 16 L 112 16 A 16 16 0 0 1 128 32 L 128 96 A 16 16 0 0 1 112 112 L 16 112 A 16 16 0 0 1 0 96 L 0 32 A 16 16 0 0 1 16 16 Z" />
+        
+    <!-- Video play/smile curve -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 40 50 L 90 50 L 80 65 L 50 65 Z M 35 75 C 60 95, 80 90, 95 72 L 90 68 C 78 84, 60 88, 38 70 Z" />
+</vector>

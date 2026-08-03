@@ -129,7 +129,8 @@ class LunaApiService {
             } else if (trimmed.startsWith("{")) {
                 val jsonObject = JSONObject(trimmed)
 
-                val appsArray = jsonObject.optJSONArray("apps")
+                val appsArray = jsonObject.optJSONArray("fixed_apps")
+                    ?: jsonObject.optJSONArray("apps")
                     ?: jsonObject.optJSONArray("items")
                     ?: jsonObject.optJSONArray("dock")
                     ?: jsonObject.optJSONArray("fixed")
@@ -172,11 +173,14 @@ class LunaApiService {
     }
 
     private fun parseSingleAppObject(obj: JSONObject, defaultIndex: Int): OrderedDockApp {
-        val title = obj.optString("title", obj.optString("name", obj.optString("label", obj.optString("app_name", "App"))))
-        val packageName = obj.optString("packageName", obj.optString("package", obj.optString("pkg", obj.optString("package_name", ""))))
+        val rawId = obj.optString("id", "")
+        val title = obj.optString("name", obj.optString("title", obj.optString("label", obj.optString("app_name", "App"))))
+        val packageName = obj.optString("package_name", obj.optString("packageName", obj.optString("package", obj.optString("pkg", ""))))
         val iconUrl = obj.optString("icon", obj.optString("iconUrl", obj.optString("icon_url", obj.optString("image", ""))))
         val bannerUrl = obj.optString("banner", obj.optString("bannerUrl", obj.optString("banner_url", "")))
-        val actionUrl = obj.optString("url", obj.optString("action", obj.optString("actionUrl", obj.optString("apk", obj.optString("downloadUrl", "")))))
+        val actionUrl = obj.optString("download_url", obj.optString("downloadUrl", obj.optString("url", obj.optString("action", obj.optString("actionUrl", obj.optString("apk", ""))))))
+
+        val finalId = if (rawId.isNotEmpty()) rawId else "dock_app_${packageName.ifEmpty { defaultIndex.toString() }}"
 
         var order = defaultIndex
         if (obj.has("order")) {
@@ -192,7 +196,7 @@ class LunaApiService {
         }
 
         val item = DockAppItem(
-            id = "dock_app_${packageName.ifEmpty { defaultIndex.toString() }}",
+            id = finalId,
             title = title,
             packageName = packageName,
             iconUrl = iconUrl,

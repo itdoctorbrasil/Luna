@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="128dp"
+    android:height="128dp"
+    android:viewportWidth="128"
+    android:viewportHeight="128">
+    
+    <!-- Play Store Green rounded background card -->
+    <path
+        android:fillColor="#00875F"
+        android:pathData="M 16 16 L 112 16 A 16 16 0 0 1 128 32 L 128 96 A 16 16 0 0 1 112 112 L 16 112 A 16 16 0 0 1 0 96 L 0 32 A 16 16 0 0 1 16 16 Z" />
+        
+    <!-- Play Store Triangle logo -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 40 32 L 92 64 L 40 96 Z" />
+</vector>

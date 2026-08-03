@@ -80,7 +80,7 @@ fun AppsGridDrawer(
 
     LaunchedEffect(isVisible, installedApps.isNotEmpty()) {
         if (isVisible && installedApps.isNotEmpty()) {
-            kotlinx.coroutines.delay(100)
+            kotlinx.coroutines.delay(80)
             focusRequesters.firstOrNull()?.requestFocus()
         }
     }
@@ -94,6 +94,12 @@ fun AppsGridDrawer(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .onKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && (event.key == Key.Back || event.key == Key.Escape)) {
+                        onClose()
+                        true
+                    } else false
+                }
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
@@ -155,7 +161,9 @@ fun AppsGridDrawer(
 
                 if (installedApps.isEmpty()) {
                     Box(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable { onClose() },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -189,6 +197,19 @@ fun AppsGridDrawer(
                                         focusRequesters.getOrNull(index + 1)?.requestFocus()
                                     }
                                 },
+                                onNavigateUp = {
+                                    if (index >= 6) {
+                                        focusRequesters.getOrNull(index - 6)?.requestFocus()
+                                    } else {
+                                        onClose()
+                                    }
+                                },
+                                onNavigateDown = {
+                                    if (index + 6 < installedApps.size) {
+                                        focusRequesters.getOrNull(index + 6)?.requestFocus()
+                                    }
+                                },
+                                onClose = onClose,
                                 onClick = { onAppClick(app) },
                                 onMenuClick = { onAppMenuUninstall(app) }
                             )
@@ -208,6 +229,9 @@ fun AppGridItem(
     focusRequester: FocusRequester = remember { FocusRequester() },
     onNavigateLeft: () -> Unit = {},
     onNavigateRight: () -> Unit = {},
+    onNavigateUp: () -> Unit = {},
+    onNavigateDown: () -> Unit = {},
+    onClose: () -> Unit = {},
     onClick: () -> Unit,
     onMenuClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -252,6 +276,18 @@ fun AppGridItem(
                             if (index < totalCount - 1) {
                                 onNavigateRight()
                             }
+                            true
+                        }
+                        Key.DirectionUp -> {
+                            onNavigateUp()
+                            true
+                        }
+                        Key.DirectionDown -> {
+                            onNavigateDown()
+                            true
+                        }
+                        Key.Back, Key.Escape -> {
+                            onClose()
                             true
                         }
                         Key.Menu -> {

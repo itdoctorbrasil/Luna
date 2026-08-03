@@ -19,6 +19,8 @@ import com.example.ui.components.OtaUpdateDialog
 import com.example.ui.components.TopHeaderBar
 import com.example.ui.components.VoiceSearchDialog
 
+import androidx.compose.ui.focus.focusProperties
+
 @Composable
 fun LunaLauncherScreen(
     viewModel: LunaViewModel,
@@ -39,6 +41,8 @@ fun LunaLauncherScreen(
     val installedPackageSet = remember(installedApps) {
         installedApps.map { it.packageName }.toSet()
     }
+
+    val isDrawerOpen = activeSection == LauncherSection.APPS_DRAWER
 
     Box(modifier = modifier.fillMaxSize()) {
         // Full screen Apple TV style background carousel
@@ -70,7 +74,8 @@ fun LunaLauncherScreen(
                 onDockAppClick = { dockApp ->
                     viewModel.onDockAppClick(dockApp)
                 },
-                onNavigateDownToGrid = { viewModel.openAppsDrawer() }
+                onNavigateDownToGrid = { viewModel.openAppsDrawer() },
+                isActive = activeSection == LauncherSection.MAIN_DOCK
             )
         }
 

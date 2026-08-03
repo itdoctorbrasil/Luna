@@ -54,6 +54,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,10 +79,18 @@ fun MainDock(
     onAppsGridClick: () -> Unit,
     onDockAppClick: (DockAppItem) -> Unit,
     onNavigateDownToGrid: () -> Unit,
+    isActive: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val focusRequesters = remember(dockApps) {
         List(dockApps.size) { FocusRequester() }
+    }
+
+    androidx.compose.runtime.LaunchedEffect(isActive, dockApps.isNotEmpty()) {
+        if (isActive && dockApps.isNotEmpty()) {
+            kotlinx.coroutines.delay(80)
+            focusRequesters.firstOrNull()?.requestFocus()
+        }
     }
 
     Box(
@@ -305,6 +314,24 @@ fun DockAppTile(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
+            // Title overlay centered at bottom
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                Text(
+                    text = app.title,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         } else if (app.iconDrawable != null) {
             val bitmap = remember(app.iconDrawable) {
                 try {
@@ -313,23 +340,33 @@ fun DockAppTile(
                     null
                 }
             }
-            if (bitmap != null) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(bottom = 18.dp)
-                ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                if (bitmap != null) {
                     Image(
                         bitmap = bitmap,
                         contentDescription = app.title,
-                        modifier = Modifier.size(44.dp)
+                        modifier = Modifier.size(42.dp)
                     )
                 }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = app.title,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         } else {
-            // Brand or default vector icon fallback
             val lowerTitle = app.title.lowercase()
             val vectorIcon = when {
                 lowerTitle.contains("youtube") -> Icons.Default.PlayCircle
@@ -344,7 +381,7 @@ fun DockAppTile(
                 verticalArrangement = Arrangement.Center,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(bottom = 18.dp)
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Icon(
                     imageVector = vectorIcon,
@@ -352,24 +389,18 @@ fun DockAppTile(
                     tint = Color.White,
                     modifier = Modifier.size(38.dp)
                 )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = app.title,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
-        }
-
-        // Title overlay at the bottom
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 10.dp, vertical = 6.dp),
-            contentAlignment = Alignment.BottomStart
-        ) {
-            Text(
-                text = app.title,
-                color = Color.White,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
         }
 
         // "Baixar" badge overlay for uninstalled dock apps
