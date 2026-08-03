@@ -1,26 +1,39 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="128dp"
-    android:height="128dp"
-    android:viewportWidth="128"
-    android:viewportHeight="128">
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="380dp"
+    android:height="180dp"
+    android:viewportWidth="380"
+    android:viewportHeight="180">
     
-    <!-- Background rounded card -->
+    <!-- Full 380x180 Red to Blue Gradient Background -->
     <path
-        android:fillColor="#00E5FF"
-        android:pathData="M 16 16 L 112 16 A 16 16 0 0 1 128 32 L 128 96 A 16 16 0 0 1 112 112 L 16 112 A 16 16 0 0 1 0 96 L 0 32 A 16 16 0 0 1 16 16 Z" />
+        android:pathData="M 0 0 L 380 0 L 380 180 L 0 180 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="0"
+                android:startY="0"
+                android:endX="380"
+                android:endY="180"
+                android:type="linear">
+                <item android:color="#FFFF3B30" android:offset="0.0"/>
+                <item android:color="#FFFF5E36" android:offset="0.4"/>
+                <item android:color="#FF3B52B5" android:offset="1.0"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    
+    <!-- Outer Play Circle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 190 35 C 167.91 35 150 52.91 150 75 C 150 97.09 167.91 115 190 115 C 212.09 115 230 97.09 230 75 C 230 52.91 212.09 35 190 35 Z M 190 43 C 207.67 43 222 57.33 222 75 C 222 92.67 207.67 107 190 107 C 172.33 107 158 92.67 158 75 C 158 57.33 172.33 43 190 43 Z" />
         
-    <!-- TV Screen outline -->
+    <!-- Inner Play Arrow -->
     <path
-        android:fillColor="#111827"
-        android:pathData="M 20 28 L 108 28 A 8 8 0 0 1 116 36 L 116 84 A 8 8 0 0 1 108 92 L 20 92 A 8 8 0 0 1 12 84 L 12 36 A 8 8 0 0 1 20 28 Z" />
+        android:fillColor="#FFFFFF"
+        android:pathData="M 182 57 L 205 75 L 182 93 Z" />
 
-    <!-- Play icon triangle in center -->
+    <!-- "UniTV" Text -->
     <path
-        android:fillColor="#00E5FF"
-        android:pathData="M 52 44 L 84 60 L 52 76 Z" />
-        
-    <!-- TV stand base -->
-    <path
-        android:fillColor="#00E5FF"
-        android:pathData="M 44 98 L 84 98 L 80 106 L 48 106 Z" />
+        android:fillColor="#FFFFFF"
+        android:pathData="M 135 130 L 143 130 L 143 148 C 143 154 147 157 152 157 C 157 157 161 154 161 148 L 161 130 L 169 130 L 169 148 C 169 159 162 164 152 164 C 142 164 135 159 135 148 Z M 176 130 L 184 130 L 184 136 L 184 136 C 187 131 193 129 198 129 C 206 129 210 134 210 143 L 210 163 L 202 163 L 202 145 C 202 139 199 136 195 136 C 190 136 184 140 184 146 L 184 163 L 176 163 Z M 216 130 L 224 130 L 224 163 L 216 163 Z M 229 130 L 253 130 L 253 137 L 245 137 L 245 163 L 237 163 L 237 137 L 229 137 Z M 256 130 L 265 130 L 273 153 L 281 130 L 290 130 L 278 163 L 268 163 Z" />
 </vector>

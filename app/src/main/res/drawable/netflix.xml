@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="380dp"
+    android:height="180dp"
+    android:viewportWidth="380"
+    android:viewportHeight="180">
+    
+    <!-- Full 380x180 Light/White Background -->
+    <path
+        android:fillColor="#F8FAFC"
+        android:pathData="M 0 0 L 380 0 L 380 180 L 0 180 Z" />
+        
+    <!-- Bold Red NETFLIX Text -->
+    <path
+        android:fillColor="#E50914"
+        android:pathData="M 40 120 L 58 120 L 58 60 L 40 60 Z M 58 120 L 86 120 L 86 104 L 72 104 L 72 94 L 84 94 L 84 78 L 72 78 L 72 76 L 86 76 L 86 60 L 58 60 Z M 88 76 L 100 76 L 100 120 L 118 120 L 118 76 L 130 76 L 130 60 L 88 60 Z M 132 60 L 132 120 L 150 120 L 150 100 L 162 100 L 162 84 L 150 84 L 150 76 L 166 76 L 166 60 Z M 168 60 L 168 120 L 186 120 L 186 104 L 198 104 L 198 120 L 216 120 L 216 60 Z M 218 60 L 218 120 L 236 120 L 236 60 Z M 238 60 L 254 90 L 238 120 L 258 120 L 268 100 L 278 120 L 298 120 L 282 90 L 298 60 L 278 60 L 268 80 L 258 60 Z" />
+</vector>

@@ -250,13 +250,13 @@ fun DockAppTile(
         label = "tile_scale"
     )
 
-    val shape = RoundedCornerShape(22.dp)
+    val shape = RoundedCornerShape(18.dp)
 
     Box(
         modifier = modifier
             .scale(scale)
-            .width(150.dp)
-            .height(86.dp)
+            .width(180.dp)
+            .height(85.dp)
             .clip(shape)
             .background(
                 brush = Brush.verticalGradient(
@@ -312,59 +312,93 @@ fun DockAppTile(
                 model = imageUrl,
                 contentDescription = app.title,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.FillBounds
             )
-            // Title overlay centered at bottom
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                Text(
-                    text = app.title,
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
         } else if (app.iconDrawable != null) {
+            val isBannerDrawable = remember(app.iconDrawable) {
+                val w = app.iconDrawable.intrinsicWidth
+                val h = app.iconDrawable.intrinsicHeight
+                (w > 0 && h > 0 && (w.toFloat() / h.toFloat()) >= 1.4f)
+            }
             val bitmap = remember(app.iconDrawable) {
                 try {
-                    app.iconDrawable.toBitmap(width = 128, height = 128).asImageBitmap()
+                    if (isBannerDrawable) {
+                        app.iconDrawable.toBitmap(width = 380, height = 180).asImageBitmap()
+                    } else {
+                        app.iconDrawable.toBitmap(width = 128, height = 128).asImageBitmap()
+                    }
                 } catch (e: Exception) {
                     null
                 }
             }
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                if (bitmap != null) {
+
+            if (bitmap != null && isBannerDrawable) {
+                Image(
+                    bitmap = bitmap,
+                    contentDescription = app.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.FillBounds
+                )
+            } else if (bitmap != null) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
                     Image(
                         bitmap = bitmap,
                         contentDescription = app.title,
                         modifier = Modifier.size(42.dp)
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = app.title,
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = app.title,
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth()
-                )
+            } else {
+                val lowerTitle = app.title.lowercase()
+                val vectorIcon = when {
+                    lowerTitle.contains("youtube") -> Icons.Default.PlayCircle
+                    lowerTitle.contains("netflix") || lowerTitle.contains("prime") || lowerTitle.contains("filme") -> Icons.Default.Movie
+                    lowerTitle.contains("chrome") || lowerTitle.contains("browser") || lowerTitle.contains("web") -> Icons.Default.Language
+                    lowerTitle.contains("play") || lowerTitle.contains("store") -> Icons.Default.ShoppingBag
+                    else -> Icons.Default.Tv
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = vectorIcon,
+                        contentDescription = app.title,
+                        tint = Color.White,
+                        modifier = Modifier.size(38.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = app.title,
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         } else {
             val lowerTitle = app.title.lowercase()

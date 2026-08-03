@@ -1,16 +1,26 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="128dp"
-    android:height="128dp"
-    android:viewportWidth="128"
-    android:viewportHeight="128">
+    android:width="380dp"
+    android:height="180dp"
+    android:viewportWidth="380"
+    android:viewportHeight="180">
     
-    <!-- Red rounded background card -->
+    <!-- Full 380x180 Red Background -->
     <path
         android:fillColor="#FF0000"
-        android:pathData="M 16 16 L 112 16 A 16 16 0 0 1 128 32 L 128 96 A 16 16 0 0 1 112 112 L 16 112 A 16 16 0 0 1 0 96 L 0 32 A 16 16 0 0 1 16 16 Z" />
+        android:pathData="M 0 0 L 380 0 L 380 180 L 0 180 Z" />
         
-    <!-- White YouTube play triangle -->
+    <!-- White YouTube Play Pill Background -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M 52 44 L 86 64 L 52 84 Z" />
+        android:pathData="M 125 55 C 125 55 125 73 128 84 C 129 90 134 95 140 96 C 151 99 190 99 190 99 C 190 99 229 99 240 96 C 246 95 251 90 252 84 C 255 73 255 55 255 55 C 255 55 255 37 252 26 C 251 20 246 15 240 14 C 229 11 190 11 190 11 C 190 11 151 11 140 14 C 134 15 129 20 128 26 C 125 37 125 55 125 55 Z" />
+        
+    <!-- Red Play Triangle inside Pill -->
+    <path
+        android:fillColor="#FF0000"
+        android:pathData="M 177 36 L 210 55 L 177 74 Z" />
+
+    <!-- White "YouTube" Text -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 100 118 L 109 118 L 115 137 L 122 118 L 131 118 L 119 148 L 110 148 L 115 135 Z M 133 133 C 133 125 139 120 147 120 C 155 120 161 125 161 133 L 161 137 C 161 145 155 150 147 150 C 139 150 133 145 133 137 Z M 142 138 C 142 142 144 144 147 144 C 150 144 152 142 152 138 L 152 132 C 152 128 150 126 147 126 C 144 126 142 128 142 132 Z M 165 136 L 165 121 L 173 121 L 173 136 C 173 142 176 144 180 144 C 184 144 187 142 187 136 L 187 121 L 195 121 L 195 149 L 187 149 L 187 143 C 184 147 180 150 175 150 C 168 150 165 145 165 136 Z M 204 115 L 224 115 L 224 121 L 218 121 L 218 149 L 210 149 L 210 121 L 204 121 Z M 227 136 L 227 121 L 235 121 L 235 136 C 235 142 238 144 242 144 C 246 144 249 142 249 136 L 249 121 L 257 121 L 257 149 L 249 149 L 249 143 C 246 147 242 150 237 150 C 230 150 227 145 227 136 Z M 261 121 L 269 121 L 269 127 C 272 122 276 120 281 120 C 288 120 293 125 293 133 L 293 136 C 293 145 288 150 280 150 C 276 150 272 148 269 144 L 269 157 L 261 157 Z M 269 137 C 269 141 271 144 275 144 C 279 144 281 141 281 137 L 281 133 C 281 129 279 126 275 126 C 271 126 269 129 269 133 Z" />
 </vector>

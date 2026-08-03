@@ -1,16 +1,34 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="128dp"
-    android:height="128dp"
-    android:viewportWidth="128"
-    android:viewportHeight="128">
+    android:width="380dp"
+    android:height="180dp"
+    android:viewportWidth="380"
+    android:viewportHeight="180">
     
-    <!-- Play Store Green rounded background card -->
-    <path
-        android:fillColor="#00875F"
-        android:pathData="M 16 16 L 112 16 A 16 16 0 0 1 128 32 L 128 96 A 16 16 0 0 1 112 112 L 16 112 A 16 16 0 0 1 0 96 L 0 32 A 16 16 0 0 1 16 16 Z" />
-        
-    <!-- Play Store Triangle logo -->
+    <!-- Full 380x180 Clean White Background -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M 40 32 L 92 64 L 40 96 Z" />
+        android:pathData="M 0 0 L 380 0 L 380 180 L 0 180 Z" />
+        
+    <!-- Google Play Multi-colored Triangle Logo -->
+    <!-- Blue section -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M 75 48 L 115 90 L 75 132 C 72 129 70 123 70 118 L 70 62 C 70 57 72 51 75 48 Z" />
+    <!-- Green section -->
+    <path
+        android:fillColor="#00E676"
+        android:pathData="M 130 75 L 115 90 L 75 48 C 79 44 85 43 92 47 Z" />
+    <!-- Yellow section -->
+    <path
+        android:fillColor="#FFD600"
+        android:pathData="M 130 105 L 92 133 C 85 137 79 136 75 132 L 115 90 Z" />
+    <!-- Red section -->
+    <path
+        android:fillColor="#FF3D00"
+        android:pathData="M 130 75 L 142 83 C 148 87 148 93 142 97 L 130 105 L 115 90 Z" />
+
+    <!-- "Google Play" Text in Dark Grey -->
+    <path
+        android:fillColor="#5F6368"
+        android:pathData="M 170 85 C 162 85 155 91 155 100 C 155 109 162 115 170 115 C 178 115 185 109 185 100 C 185 91 178 85 170 85 Z M 170 109 C 165 109 161 105 161 100 C 161 95 165 91 170 91 C 175 91 179 95 179 100 C 179 105 175 109 170 109 Z M 190 85 C 182 85 175 91 175 100 C 175 109 182 115 190 115 C 198 115 205 109 205 100 C 205 91 198 85 190 85 Z M 190 109 C 185 109 181 105 181 100 C 181 95 185 91 190 91 C 195 91 199 95 199 100 C 199 105 195 109 190 109 Z M 220 86 C 212 86 206 92 206 100 C 206 108 212 115 220 115 C 224 115 228 113 230 110 L 230 114 C 230 120 226 124 220 124 C 215 124 212 120 211 117 L 205 119 C 207 125 212 130 220 130 C 230 130 237 124 237 113 L 237 87 L 230 87 L 230 90 C 228 87 224 86 220 86 Z M 221 109 C 216 109 212 105 212 100 C 212 95 216 91 221 91 C 226 91 230 95 230 100 C 230 105 226 109 221 109 Z M 242 68 L 249 68 L 249 114 L 242 114 Z M 260 85 C 253 85 247 91 247 100 C 247 108 253 115 260 115 C 266 115 271 112 273 107 L 267 105 C 265 108 263 109 260 109 C 257 109 254 107 253 103 L 274 94 L 273 92 C 271 87 266 85 260 85 Z M 260 91 C 262 91 265 93 266 96 L 253 101 C 253 95 257 91 260 91 Z M 280 87 L 288 87 L 288 114 L 280 114 Z M 295 87 L 302 87 L 302 90 C 304 87 308 86 312 86 C 320 86 325 91 325 100 L 325 114 L 318 114 L 318 101 C 318 95 315 92 310 92 C 306 92 302 95 302 101 L 302 114 L 295 114 Z" />
 </vector>

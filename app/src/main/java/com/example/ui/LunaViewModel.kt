@@ -158,10 +158,22 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
         if (rawDockApps != null) {
             val context = getApplication<Application>()
             val enrichedDockApps = rawDockApps.map { item ->
-                // Check if res/drawable has an image file matching item.id (e.g. "unitv")
-                val resId = if (item.id.isNotEmpty()) {
-                    val cleanId = item.id.lowercase().trim()
-                    context.resources.getIdentifier(cleanId, "drawable", context.packageName)
+                val cleanId = item.id.lowercase().trim()
+                val cleanTitle = item.title.lowercase().trim()
+                val cleanPkg = item.packageName.lowercase().trim()
+
+                val matchedName = when {
+                    cleanId == "unitv" || cleanTitle.contains("unitv") -> "unitv"
+                    cleanId.contains("youtube") || cleanTitle.contains("youtube") || cleanPkg.contains("youtube") -> "youtube"
+                    cleanId.contains("netflix") || cleanTitle.contains("netflix") || cleanPkg.contains("netflix") -> "netflix"
+                    cleanId.contains("prime") || cleanTitle.contains("prime") || cleanPkg.contains("amazon") -> "prime"
+                    cleanId.contains("disney") || cleanTitle.contains("disney") || cleanPkg.contains("disney") -> "disney"
+                    cleanId.contains("play") || cleanTitle.contains("play") || cleanPkg.contains("vending") -> "playstore"
+                    else -> cleanId
+                }
+
+                val resId = if (matchedName.isNotEmpty()) {
+                    context.resources.getIdentifier(matchedName, "drawable", context.packageName)
                 } else 0
 
                 val localDrawable = if (resId != 0) {
