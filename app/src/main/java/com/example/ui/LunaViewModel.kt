@@ -63,6 +63,8 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
     private val _showOtaDialog = MutableStateFlow(false)
     val showOtaDialog: StateFlow<Boolean> = _showOtaDialog.asStateFlow()
 
+    private var isOtaDismissedForSession = false
+
     private val _appToUninstall = MutableStateFlow<InstalledApp?>(null)
     val appToUninstall: StateFlow<InstalledApp?> = _appToUninstall.asStateFlow()
 
@@ -77,6 +79,11 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun checkHasBootVideo(): Boolean {
         val ctx = getApplication<Application>()
+        val prefs = ctx.getSharedPreferences("luna_launcher_prefs", android.content.Context.MODE_PRIVATE)
+        val hasPlayed = prefs.getBoolean("boot_video_played", false)
+        if (hasPlayed) {
+            return false
+        }
         val res1 = ctx.resources.getIdentifier("bootvideo", "raw", ctx.packageName)
         val res2 = ctx.resources.getIdentifier("welcome", "raw", ctx.packageName)
         return (res1 != 0 || res2 != 0)
@@ -84,6 +91,25 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
 
     fun dismissBootVideo() {
         _showBootVideo.value = false
+        try {
+            val ctx = getApplication<Application>()
+            ctx.getSharedPreferences("luna_launcher_prefs", android.content.Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("boot_video_played", true)
+                .apply()
+        } catch (e: Exception) {
+            android.util.Log.e("LunaViewModel", "Error saving boot_video_played pref: ${e.message}")
+        }
+        checkPendingOtaDialog()
+    }
+
+    private fun checkPendingOtaDialog() {
+        if (isOtaDismissedForSession) return
+        val ota = _otaInfo.value ?: return
+        val currentCode = com.example.LunaApplication.getAppVersionCode(getApplication())
+        if (ota.versionCode > currentCode && !_showBootVideo.value && !_showOtaDialog.value && !_downloadState.value.isDownloading && !_downloadState.value.isDownloadComplete) {
+            _showOtaDialog.value = true
+        }
     }
 
     private var downloadJob: kotlinx.coroutines.Job? = null
@@ -101,12 +127,29 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
         startBannerCarouselTimer()
         startPeriodicSyncTimer()
         observeInstalledAppsForDownloadDismissal()
+        observeBackgroundOtaUpdates()
+    }
+
+    private fun observeBackgroundOtaUpdates() {
+        viewModelScope.launch {
+            com.example.LunaApplication.otaUpdateFlow.collect { ota ->
+                if (ota != null) {
+                    val currentCode = com.example.LunaApplication.getAppVersionCode(getApplication())
+                    if (ota.versionCode > currentCode) {
+                        _otaInfo.value = ota
+                        if (!isOtaDismissedForSession && !_showBootVideo.value && !_showOtaDialog.value && !_downloadState.value.isDownloading && !_downloadState.value.isDownloadComplete) {
+                            _showOtaDialog.value = true
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private fun startPeriodicSyncTimer() {
         viewModelScope.launch {
             while (true) {
-                delay(60000) // 1 minute (60 seconds) synchronization loop
+                delay(30000) // 30 seconds periodic check
                 try {
                     syncAllRemoteData(isInitial = false)
                 } catch (e: Exception) {
@@ -206,8 +249,8 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
         val versionInfo = apiService.fetchOtaVersion()
         if (versionInfo != null) {
             _otaInfo.value = versionInfo
-            val currentCode = 1
-            if (versionInfo.versionCode > currentCode && !_showOtaDialog.value && isInitial) {
+            val currentCode = com.example.LunaApplication.getAppVersionCode(getApplication())
+            if (versionInfo.versionCode > currentCode && !isOtaDismissedForSession && !_showBootVideo.value && !_showOtaDialog.value && !_downloadState.value.isDownloading) {
                 _showOtaDialog.value = true
             }
         }
@@ -277,12 +320,54 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun checkIfOtaAlreadyDownloaded(): java.io.File? {
+        val ota = _otaInfo.value ?: return null
+        val downloadDir = java.io.File(getApplication<Application>().cacheDir, "apks")
+        val candidateNames = listOf(
+            "update_ota_${ota.versionCode}.apk",
+            "LunaLauncher-v${ota.versionName}.apk",
+            "LunaLauncher.apk",
+            "update.apk"
+        )
+        val pm = getApplication<Application>().packageManager
+        for (name in candidateNames) {
+            val file = java.io.File(downloadDir, name)
+            if (file.exists() && file.length() > 10240) {
+                val pkgInfo = try {
+                    pm.getPackageArchiveInfo(file.absolutePath, 0)
+                } catch (_: Exception) { null }
+                if (pkgInfo != null) {
+                    return file
+                }
+            }
+        }
+        return null
+    }
+
     fun startOtaDownload() {
-        val ota = _otaInfo.value ?: return
+        val ota = _otaInfo.value
         _showOtaDialog.value = false
-        val url = if (ota.url.startsWith("http")) ota.url else "https://itdoctorbrasil.site/Launchers/Luna/update.apk"
+        val existingFile = checkIfOtaAlreadyDownloaded()
+        val ver = ota?.versionName?.ifBlank { "1.0.1" } ?: "1.0.1"
+        if (existingFile != null) {
+            _downloadState.value = AppDownloadProgress(
+                title = "Atualização de Sistema v$ver",
+                packageName = getApplication<Application>().packageName,
+                downloadUrl = ota?.url ?: "",
+                isOtaUpdate = true,
+                isVisible = true,
+                isDownloading = false,
+                isDownloadComplete = true,
+                progressPercent = 100,
+                downloadedBytes = existingFile.length(),
+                totalBytes = existingFile.length(),
+                downloadedFile = existingFile
+            )
+            return
+        }
+        val url = ota?.url?.trim() ?: ""
         startDownload(
-            title = "Atualização de Sistema v${ota.versionName}",
+            title = "Atualização de Sistema v$ver",
             packageName = getApplication<Application>().packageName,
             downloadUrl = url,
             isOta = true
@@ -304,7 +389,7 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
         val outputFile = java.io.File(downloadDir, fileName)
 
         // Pre-check: Verify if APK is already downloaded and valid
-        if (outputFile.exists() && outputFile.length() > 0) {
+        if (outputFile.exists() && outputFile.length() > 10240) {
             val pm = getApplication<Application>().packageManager
             val pkgInfo = try {
                 pm.getPackageArchiveInfo(outputFile.absolutePath, 0)
@@ -313,7 +398,6 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             if (pkgInfo != null) {
-                // File is already completely downloaded and is a valid APK! Skip re-downloading.
                 _downloadState.value = AppDownloadProgress(
                     title = title,
                     packageName = packageName,
@@ -329,7 +413,6 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 return
             } else {
-                // Corrupted or incomplete file, delete it
                 outputFile.delete()
             }
         }
@@ -349,79 +432,113 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
 
         downloadJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val scope = this
-            try {
-                if (outputFile.exists()) outputFile.delete()
+            var success = false
+            var lastErrorCode = 0
 
-                if (downloadUrl.isBlank()) {
-                    _downloadState.value = _downloadState.value.copy(
-                        isDownloading = false,
-                        errorMessage = "URL de download não disponível."
-                    )
-                    return@launch
-                }
+            val candidateUrls = mutableListOf<String>()
+            if (downloadUrl.isNotBlank()) {
+                candidateUrls.add(downloadUrl)
+            }
 
-                val request = okhttp3.Request.Builder().url(downloadUrl).build()
-                val response = okHttpClient.newCall(request).execute()
-
-                if (!response.isSuccessful) {
-                    _downloadState.value = _downloadState.value.copy(
-                        isDownloading = false,
-                        errorMessage = "Erro HTTP (${response.code})"
-                    )
-                    return@launch
-                }
-
-                val body = response.body
-                if (body == null) {
-                    _downloadState.value = _downloadState.value.copy(
-                        isDownloading = false,
-                        errorMessage = "Download vazio."
-                    )
-                    return@launch
-                }
-
-                val totalBytes = body.contentLength()
-                var downloadedBytes = 0L
-
-                body.byteStream().use { input ->
-                    outputFile.outputStream().use { output ->
-                        val buffer = ByteArray(8192)
-                        var bytesRead: Int
-                        while (input.read(buffer).also { bytesRead = it } != -1) {
-                            if (!scope.isActive) {
-                                outputFile.delete()
-                                return@launch
-                            }
-                            output.write(buffer, 0, bytesRead)
-                            downloadedBytes += bytesRead
-                            val progress = if (totalBytes > 0) ((downloadedBytes * 100) / totalBytes).toInt() else 0
-
-                            _downloadState.value = _downloadState.value.copy(
-                                progressPercent = progress,
-                                downloadedBytes = downloadedBytes,
-                                totalBytes = totalBytes
-                            )
-                        }
+            if (isOta) {
+                // For OTA, the download URL is retrieved dynamically from version.json
+                if (candidateUrls.isEmpty()) {
+                    val freshOta = apiService.fetchOtaVersion()
+                    if (freshOta != null && freshOta.url.isNotBlank()) {
+                        candidateUrls.add(freshOta.url)
                     }
                 }
+            } else {
+                val pkg = packageName.trim()
+                val cleanTitle = title.lowercase().trim().replace(" ", "")
+                if (pkg.isNotEmpty()) {
+                    candidateUrls.add("https://itdoctorbrasil.site/Launchers/Luna/apks/$pkg.apk")
+                    candidateUrls.add("https://itdoctorbrasil.site/Launchers/Luna/$pkg.apk")
+                }
+                if (cleanTitle.isNotEmpty()) {
+                    candidateUrls.add("https://itdoctorbrasil.site/Launchers/Luna/apks/$cleanTitle.apk")
+                    candidateUrls.add("https://itdoctorbrasil.site/Launchers/Luna/$cleanTitle.apk")
+                }
+            }
 
+            for (url in candidateUrls) {
+                if (!scope.isActive) return@launch
+                try {
+                    if (outputFile.exists()) outputFile.delete()
+                    android.util.Log.d("LunaViewModel", "Attempting download from candidate URL: $url")
+
+                    val request = okhttp3.Request.Builder()
+                        .url(url)
+                        .header("User-Agent", "Mozilla/5.0 (Linux; Android 7.0; TV) AppleWebKit/537.36")
+                        .build()
+
+                    val response = okHttpClient.newCall(request).execute()
+
+                    if (!response.isSuccessful) {
+                        lastErrorCode = response.code
+                        response.close()
+                        continue
+                    }
+
+                    val body = response.body
+                    if (body == null) {
+                        response.close()
+                        continue
+                    }
+
+                    val totalBytes = body.contentLength()
+                    var downloadedBytes = 0L
+
+                    body.byteStream().use { input ->
+                        outputFile.outputStream().use { output ->
+                            val buffer = ByteArray(8192)
+                            var bytesRead: Int
+                            while (input.read(buffer).also { bytesRead = it } != -1) {
+                                if (!scope.isActive) {
+                                    outputFile.delete()
+                                    response.close()
+                                    return@launch
+                                }
+                                output.write(buffer, 0, bytesRead)
+                                downloadedBytes += bytesRead
+                                val progress = if (totalBytes > 0) ((downloadedBytes * 100) / totalBytes).toInt() else 0
+
+                                _downloadState.value = _downloadState.value.copy(
+                                    progressPercent = progress,
+                                    downloadedBytes = downloadedBytes,
+                                    totalBytes = totalBytes
+                                )
+                            }
+                        }
+                    }
+                    response.close()
+
+                    if (outputFile.exists() && outputFile.length() > 10240) {
+                        success = true
+                        break
+                    } else {
+                        if (outputFile.exists()) outputFile.delete()
+                    }
+                } catch (e: Exception) {
+                    if (outputFile.exists()) outputFile.delete()
+                    android.util.Log.e("LunaViewModel", "Error downloading from $url: ${e.message}")
+                }
+            }
+
+            if (!scope.isActive) return@launch
+
+            if (success) {
                 _downloadState.value = _downloadState.value.copy(
                     isDownloading = false,
                     isDownloadComplete = true,
                     progressPercent = 100,
                     downloadedFile = outputFile
                 )
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                if (outputFile.exists() && !_downloadState.value.isDownloadComplete) {
-                    outputFile.delete()
-                }
-                _downloadState.value = AppDownloadProgress()
-            } catch (e: Exception) {
+            } else {
                 if (outputFile.exists()) outputFile.delete()
-                android.util.Log.e("LunaViewModel", "Download error: ${e.message}", e)
                 _downloadState.value = _downloadState.value.copy(
                     isDownloading = false,
-                    errorMessage = "Falha no download. Verifique a conexão."
+                    errorMessage = if (lastErrorCode != 0) "Erro HTTP ($lastErrorCode)" else "Falha no download. Verifique a conexão."
                 )
             }
         }
@@ -469,7 +586,7 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
             return true
         }
         if (_showOtaDialog.value) {
-            _showOtaDialog.value = false
+            dismissOtaDialog()
             return true
         }
         if (_activeSection.value == LauncherSection.APPS_DRAWER) {
@@ -493,6 +610,7 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dismissOtaDialog() {
+        isOtaDismissedForSession = true
         _showOtaDialog.value = false
     }
 

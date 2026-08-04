@@ -12,16 +12,18 @@ import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class AppManager(private val context: Context) {
 
     companion object {
         private const val TAG = "AppManager"
+        private const val TV_SETTINGS_PKG = "com.android.tv.settings"
+        private const val STANDARD_SETTINGS_PKG = "com.android.settings"
     }
 
     private val _installedApps = MutableStateFlow<List<InstalledApp>>(emptyList())
@@ -147,18 +149,28 @@ class AppManager(private val context: Context) {
     fun installApk(apkFile: java.io.File): Boolean {
         return try {
             val intent = Intent(Intent.ACTION_VIEW)
+            val type = "application/vnd.android.package-archive"
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 val apkUri: Uri = androidx.core.content.FileProvider.getUriForFile(
                     context,
                     "${context.packageName}.fileprovider",
                     apkFile
                 )
-                intent.setDataAndType(apkUri, "application/vnd.android.package-archive")
+                intent.setDataAndType(apkUri, type)
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+                @Suppress("DEPRECATION")
+                val resInfoList = context.packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+                for (resolveInfo in resInfoList) {
+                    val pkgName = resolveInfo.activityInfo.packageName
+                    context.grantUriPermission(pkgName, apkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
             } else {
-                intent.setDataAndType(Uri.fromFile(apkFile), "application/vnd.android.package-archive")
+                intent.setDataAndType(Uri.fromFile(apkFile), type)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
             true
         } catch (e: Exception) {
@@ -198,11 +210,8 @@ class AppManager(private val context: Context) {
     }
 
     fun openSettings() {
-        val tvSettingsPkg = "com.android.tv.settings"
-        val standardSettingsPkg = "com.android.settings"
-
-        if (launchApp(tvSettingsPkg)) return
-        if (launchApp(standardSettingsPkg)) return
+        if (launchApp(TV_SETTINGS_PKG)) return
+        if (launchApp(STANDARD_SETTINGS_PKG)) return
 
         try {
             val intent = Intent(Settings.ACTION_SETTINGS).apply {
@@ -215,11 +224,8 @@ class AppManager(private val context: Context) {
     }
 
     fun openWifiSettings() {
-        val tvSettingsPkg = "com.android.tv.settings"
-        val standardSettingsPkg = "com.android.settings"
-
-        if (isAppInstalled(tvSettingsPkg) && launchApp(tvSettingsPkg)) return
-        if (isAppInstalled(standardSettingsPkg) && launchApp(standardSettingsPkg)) return
+        if (isAppInstalled(TV_SETTINGS_PKG) && launchApp(TV_SETTINGS_PKG)) return
+        if (isAppInstalled(STANDARD_SETTINGS_PKG) && launchApp(STANDARD_SETTINGS_PKG)) return
 
         try {
             val intent = Intent(Settings.ACTION_WIFI_SETTINGS).apply {
@@ -232,11 +238,8 @@ class AppManager(private val context: Context) {
     }
 
     fun openBluetoothSettings() {
-        val tvSettingsPkg = "com.android.tv.settings"
-        val standardSettingsPkg = "com.android.settings"
-
-        if (isAppInstalled(tvSettingsPkg) && launchApp(tvSettingsPkg)) return
-        if (isAppInstalled(standardSettingsPkg) && launchApp(standardSettingsPkg)) return
+        if (isAppInstalled(TV_SETTINGS_PKG) && launchApp(TV_SETTINGS_PKG)) return
+        if (isAppInstalled(STANDARD_SETTINGS_PKG) && launchApp(STANDARD_SETTINGS_PKG)) return
 
         try {
             val intent = Intent(Settings.ACTION_BLUETOOTH_SETTINGS).apply {
@@ -270,7 +273,7 @@ class AppManager(private val context: Context) {
                     return true
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error trying intent ${intent.action}: ${e.message}")
+                Log.e(TAG, "Error trying voice intent ${intent.action}: ${e.message}")
             }
         }
         return false
@@ -278,13 +281,12 @@ class AppManager(private val context: Context) {
 
     fun performWebSearch(query: String) {
         if (query.isBlank()) return
-        
-        // First check if query matches an installed app
-        val matchedApp = _installedApps.value.find { 
+
+        val matchedApp = _installedApps.value.find {
             it.title.equals(query.trim(), ignoreCase = true) ||
             it.title.lowercase().contains(query.trim().lowercase())
         }
-        
+
         if (matchedApp != null) {
             launchApp(matchedApp.packageName)
             return
@@ -302,3 +304,5 @@ class AppManager(private val context: Context) {
         }
     }
 }
+
+
