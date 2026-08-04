@@ -63,11 +63,148 @@ class SystemMonitor(private val context: Context) {
 
     fun fetchRealWeather() {
         scope.launch {
-            // Service 1: ipapi.co HTTPS IP Geolocation
+            // 0. Try Android System LocationManager (GPS/Network) if permission is available
+            try {
+                val lastLoc = getLastKnownLocation()
+                if (lastLoc != null) {
+                    val lat = lastLoc.latitude
+                    val lon = lastLoc.longitude
+                    var cityName = ""
+                    try {
+                        val geocoder = android.location.Geocoder(context, Locale.getDefault())
+                        @Suppress("DEPRECATION")
+                        val addresses = geocoder.getFromLocation(lat, lon, 1)
+                        if (!addresses.isNullOrEmpty()) {
+                            cityName = addresses[0].locality
+                                ?: addresses[0].subAdminArea
+                                ?: addresses[0].adminArea
+                                ?: ""
+                        }
+                    } catch (_: Exception) {}
+
+                    val wUrl = URL("https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true")
+                    val wConn = wUrl.openConnection() as HttpURLConnection
+                    NetworkClientHelper.configureHttpURLConnection(wConn)
+                    wConn.setRequestProperty("User-Agent", "Mozilla/5.0")
+                    wConn.connectTimeout = 5000
+                    wConn.readTimeout = 5000
+
+                    val wJsonStr = wConn.inputStream.bufferedReader().use { it.readText() }
+                    wConn.disconnect()
+
+                    val wJson = JSONObject(wJsonStr)
+                    val currentWeather = wJson.optJSONObject("current_weather")
+                    if (currentWeather != null) {
+                        val temp = currentWeather.optDouble("temperature", 20.0).toInt()
+                        val code = currentWeather.optInt("weathercode", 0)
+                        val condition = parseWeatherCode(code)
+
+                        _status.value = _status.value.copy(
+                            weatherLocation = "${if (cityName.isNotBlank()) cityName else "Local"} · $condition",
+                            weatherTemp = "${temp}°C"
+                        )
+                        return@launch
+                    }
+                }
+            } catch (_: Exception) {}
+
+            // Service 1: ip-api.com (Fast & accurate IP Geolocation)
+            try {
+                val ipUrl = URL("http://ip-api.com/json/?fields=status,city,country,lat,lon")
+                val conn = ipUrl.openConnection() as HttpURLConnection
+                conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+                conn.connectTimeout = 5000
+                conn.readTimeout = 5000
+
+                val ipJsonStr = conn.inputStream.bufferedReader().use { it.readText() }
+                conn.disconnect()
+
+                val ipJson = JSONObject(ipJsonStr)
+                if (ipJson.optString("status") == "success") {
+                    val city = ipJson.optString("city", "").ifEmpty { ipJson.optString("country", "Local") }
+                    val lat = ipJson.optDouble("lat", 0.0)
+                    val lon = ipJson.optDouble("lon", 0.0)
+
+                    if (lat != 0.0 && lon != 0.0) {
+                        val weatherUrl = URL("https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true")
+                        val wConn = weatherUrl.openConnection() as HttpURLConnection
+                        NetworkClientHelper.configureHttpURLConnection(wConn)
+                        wConn.setRequestProperty("User-Agent", "Mozilla/5.0")
+                        wConn.connectTimeout = 5000
+                        wConn.readTimeout = 5000
+
+                        val wJsonStr = wConn.inputStream.bufferedReader().use { it.readText() }
+                        wConn.disconnect()
+
+                        val wJson = JSONObject(wJsonStr)
+                        val currentWeather = wJson.optJSONObject("current_weather")
+                        if (currentWeather != null) {
+                            val temp = currentWeather.optDouble("temperature", 20.0).toInt()
+                            val code = currentWeather.optInt("weathercode", 0)
+                            val condition = parseWeatherCode(code)
+
+                            _status.value = _status.value.copy(
+                                weatherLocation = "$city · $condition",
+                                weatherTemp = "${temp}°C"
+                            )
+                            return@launch
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+
+            // Service 2: ipwho.is
+            try {
+                val ipUrl = URL("https://ipwho.is/")
+                val conn = ipUrl.openConnection() as HttpURLConnection
+                NetworkClientHelper.configureHttpURLConnection(conn)
+                conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+                conn.connectTimeout = 5000
+                conn.readTimeout = 5000
+
+                val ipJsonStr = conn.inputStream.bufferedReader().use { it.readText() }
+                conn.disconnect()
+
+                val ipJson = JSONObject(ipJsonStr)
+                if (ipJson.optBoolean("success", false)) {
+                    val city = ipJson.optString("city", "").ifEmpty { ipJson.optString("country", "Local") }
+                    val lat = ipJson.optDouble("latitude", 0.0)
+                    val lon = ipJson.optDouble("longitude", 0.0)
+
+                    if (lat != 0.0 && lon != 0.0) {
+                        val weatherUrl = URL("https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true")
+                        val wConn = weatherUrl.openConnection() as HttpURLConnection
+                        NetworkClientHelper.configureHttpURLConnection(wConn)
+                        wConn.setRequestProperty("User-Agent", "Mozilla/5.0")
+                        wConn.connectTimeout = 5000
+                        wConn.readTimeout = 5000
+
+                        val wJsonStr = wConn.inputStream.bufferedReader().use { it.readText() }
+                        wConn.disconnect()
+
+                        val wJson = JSONObject(wJsonStr)
+                        val currentWeather = wJson.optJSONObject("current_weather")
+                        if (currentWeather != null) {
+                            val temp = currentWeather.optDouble("temperature", 20.0).toInt()
+                            val code = currentWeather.optInt("weathercode", 0)
+                            val condition = parseWeatherCode(code)
+
+                            _status.value = _status.value.copy(
+                                weatherLocation = "$city · $condition",
+                                weatherTemp = "${temp}°C"
+                            )
+                            return@launch
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+
+            // Service 3: ipapi.co
             try {
                 val ipUrl = URL("https://ipapi.co/json/")
                 val conn = ipUrl.openConnection() as HttpURLConnection
-                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Android Launcher)")
+                NetworkClientHelper.configureHttpURLConnection(conn)
+                conn.setRequestProperty("User-Agent", "Mozilla/5.0")
                 conn.connectTimeout = 5000
                 conn.readTimeout = 5000
 
@@ -82,6 +219,7 @@ class SystemMonitor(private val context: Context) {
                 if (lat != 0.0 && lon != 0.0) {
                     val weatherUrl = URL("https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true")
                     val wConn = weatherUrl.openConnection() as HttpURLConnection
+                    NetworkClientHelper.configureHttpURLConnection(wConn)
                     wConn.setRequestProperty("User-Agent", "Mozilla/5.0")
                     wConn.connectTimeout = 5000
                     wConn.readTimeout = 5000
@@ -105,10 +243,11 @@ class SystemMonitor(private val context: Context) {
                 }
             } catch (_: Exception) {}
 
-            // Service 2: geojs.io HTTPS fallback
+            // Service 4: geojs.io fallback
             try {
                 val geoUrl = URL("https://get.geojs.io/v1/ip/geo.json")
                 val conn = geoUrl.openConnection() as HttpURLConnection
+                NetworkClientHelper.configureHttpURLConnection(conn)
                 conn.setRequestProperty("User-Agent", "Mozilla/5.0")
                 conn.connectTimeout = 5000
                 conn.readTimeout = 5000
@@ -124,6 +263,7 @@ class SystemMonitor(private val context: Context) {
                 if (lat != 0.0 && lon != 0.0) {
                     val weatherUrl = URL("https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true")
                     val wConn = weatherUrl.openConnection() as HttpURLConnection
+                    NetworkClientHelper.configureHttpURLConnection(wConn)
                     wConn.setRequestProperty("User-Agent", "Mozilla/5.0")
                     wConn.connectTimeout = 5000
                     wConn.readTimeout = 5000
@@ -147,10 +287,11 @@ class SystemMonitor(private val context: Context) {
                 }
             } catch (_: Exception) {}
 
-            // Service 3: wttr.in fallback
+            // Service 5: wttr.in fallback
             try {
                 val fallbackUrl = URL("https://wttr.in/?format=j1")
                 val conn = fallbackUrl.openConnection() as HttpURLConnection
+                NetworkClientHelper.configureHttpURLConnection(conn)
                 conn.setRequestProperty("User-Agent", "Mozilla/5.0")
                 conn.connectTimeout = 4000
                 conn.readTimeout = 4000
@@ -159,7 +300,7 @@ class SystemMonitor(private val context: Context) {
 
                 val json = JSONObject(jsonStr)
                 val area = json.optJSONArray("nearest_area")?.optJSONObject(0)
-                val cityName = area?.optJSONArray("areaName")?.optJSONObject(0)?.optString("value") ?: "Sua Cidade"
+                val cityName = area?.optJSONArray("areaName")?.optJSONObject(0)?.optString("value") ?: "Local"
                 val currentCondition = json.optJSONArray("current_condition")?.optJSONObject(0)
                 val tempC = currentCondition?.optString("temp_C") ?: "22"
                 val desc = currentCondition?.optJSONArray("lang_pt")?.optJSONObject(0)?.optString("value")
@@ -173,11 +314,30 @@ class SystemMonitor(private val context: Context) {
                 return@launch
             } catch (_: Exception) {}
 
-            // Default fallback if offline
+            // Fallback when completely offline
             _status.value = _status.value.copy(
-                weatherLocation = "São Paulo · Ensolarado",
-                weatherTemp = "24°C"
+                weatherLocation = "Sem conexão",
+                weatherTemp = "--°C"
             )
+        }
+    }
+
+    private fun getLastKnownLocation(): android.location.Location? {
+        val lm = context.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager ?: return null
+        return try {
+            val providers = lm.getProviders(true)
+            var bestLocation: android.location.Location? = null
+            for (provider in providers) {
+                val l = lm.getLastKnownLocation(provider) ?: continue
+                if (bestLocation == null || l.accuracy < bestLocation.accuracy) {
+                    bestLocation = l
+                }
+            }
+            bestLocation
+        } catch (_: SecurityException) {
+            null
+        } catch (_: Exception) {
+            null
         }
     }
 

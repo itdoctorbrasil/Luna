@@ -87,10 +87,7 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private var downloadJob: kotlinx.coroutines.Job? = null
-    private val okHttpClient = okhttp3.OkHttpClient.Builder()
-        .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-        .build()
+    private val okHttpClient = com.example.data.NetworkClientHelper.okHttpClient
 
     private val _activeSection = MutableStateFlow(LauncherSection.MAIN_DOCK)
     val activeSection: StateFlow<LauncherSection> = _activeSection.asStateFlow()

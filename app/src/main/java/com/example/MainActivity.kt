@@ -20,6 +20,9 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import coil.Coil
+import coil.ImageLoader
+import com.example.data.NetworkClientHelper
 import com.example.ui.LunaLauncherScreen
 import com.example.ui.LunaViewModel
 
@@ -41,6 +44,14 @@ class MainActivity : ComponentActivity() {
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
         enableEdgeToEdge()
+
+        try {
+            val imageLoader = ImageLoader.Builder(this)
+                .okHttpClient(NetworkClientHelper.okHttpClient)
+                .crossfade(true)
+                .build()
+            Coil.setImageLoader(imageLoader)
+        } catch (_: Exception) {}
 
         checkAndRequestPermissions()
 

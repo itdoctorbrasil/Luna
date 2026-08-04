@@ -11,17 +11,7 @@ import java.util.concurrent.TimeUnit
 
 class LunaApiService {
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(12, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .addInterceptor { chain ->
-            val original = chain.request()
-            val request = original.newBuilder()
-                .header("User-Agent", "Mozilla/5.0 (Linux; Android TV; LunaLauncher/1.0)")
-                .build()
-            chain.proceed(request)
-        }
-        .build()
+    private val client = NetworkClientHelper.okHttpClient
 
     companion object {
         private const val TAG = "LunaApiService"
