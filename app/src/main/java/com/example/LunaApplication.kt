@@ -21,6 +21,29 @@ class LunaApplication : Application() {
         private val _otaUpdateFlow = MutableStateFlow<OtaVersionInfo?>(null)
         val otaUpdateFlow: StateFlow<OtaVersionInfo?> = _otaUpdateFlow.asStateFlow()
 
+        fun cleanUpCachedApks(context: Context) {
+            try {
+                val cacheApksDir = java.io.File(context.cacheDir, "apks")
+                if (cacheApksDir.exists()) {
+                    cacheApksDir.listFiles()?.forEach { file ->
+                        if (file.isFile && (file.name.endsWith(".apk", ignoreCase = true) || file.name.startsWith("update_ota_"))) {
+                            try { file.delete() } catch (_: Exception) {}
+                        }
+                    }
+                }
+                val externalCacheApksDir = context.externalCacheDir?.let { java.io.File(it, "apks") }
+                if (externalCacheApksDir != null && externalCacheApksDir.exists()) {
+                    externalCacheApksDir.listFiles()?.forEach { file ->
+                        if (file.isFile && (file.name.endsWith(".apk", ignoreCase = true) || file.name.startsWith("update_ota_"))) {
+                            try { file.delete() } catch (_: Exception) {}
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error cleaning cached apks: ${e.message}")
+            }
+        }
+
         fun getAppVersionCode(context: Context): Int {
             return try {
                 val pInfo = context.packageManager.getPackageInfo(context.packageName, 0)
@@ -38,6 +61,7 @@ class LunaApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        cleanUpCachedApks(this)
         startBackgroundOtaChecker()
     }
 

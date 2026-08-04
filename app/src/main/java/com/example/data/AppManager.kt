@@ -101,8 +101,10 @@ class AppManager(private val context: Context) {
                 if (action == Intent.ACTION_PACKAGE_ADDED ||
                     action == Intent.ACTION_PACKAGE_REMOVED ||
                     action == Intent.ACTION_PACKAGE_CHANGED ||
-                    action == Intent.ACTION_PACKAGE_REPLACED
+                    action == Intent.ACTION_PACKAGE_REPLACED ||
+                    action == Intent.ACTION_MY_PACKAGE_REPLACED
                 ) {
+                    ctx?.let { com.example.LunaApplication.cleanUpCachedApks(it) }
                     kotlinx.coroutines.MainScope().launch {
                         loadInstalledApps()
                     }
@@ -115,6 +117,7 @@ class AppManager(private val context: Context) {
             addAction(Intent.ACTION_PACKAGE_REMOVED)
             addAction(Intent.ACTION_PACKAGE_CHANGED)
             addAction(Intent.ACTION_PACKAGE_REPLACED)
+            addAction(Intent.ACTION_MY_PACKAGE_REPLACED)
             addDataScheme("package")
         }
 

@@ -165,7 +165,13 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
                 val current = _downloadState.value
                 if (current.isVisible && current.packageName.isNotEmpty()) {
                     val isNowInstalled = installedList.any { it.packageName == current.packageName }
-                    if (isNowInstalled) {
+                    if (isNowInstalled || current.isOtaUpdate) {
+                        current.downloadedFile?.let { file ->
+                            if (file.exists()) {
+                                try { file.delete() } catch (_: Exception) {}
+                            }
+                        }
+                        com.example.LunaApplication.cleanUpCachedApks(getApplication())
                         _downloadState.value = AppDownloadProgress()
                     }
                 }
@@ -322,6 +328,11 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
 
     fun checkIfOtaAlreadyDownloaded(): java.io.File? {
         val ota = _otaInfo.value ?: return null
+        val currentCode = com.example.LunaApplication.getAppVersionCode(getApplication())
+        if (ota.versionCode <= currentCode) {
+            com.example.LunaApplication.cleanUpCachedApks(getApplication())
+            return null
+        }
         val downloadDir = java.io.File(getApplication<Application>().cacheDir, "apks")
         val candidateNames = listOf(
             "update_ota_${ota.versionCode}.apk",
@@ -337,7 +348,19 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
                     pm.getPackageArchiveInfo(file.absolutePath, 0)
                 } catch (_: Exception) { null }
                 if (pkgInfo != null) {
-                    return file
+                    val archiveVersion = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                        pkgInfo.longVersionCode.toInt()
+                    } else {
+                        @Suppress("DEPRECATION")
+                        pkgInfo.versionCode
+                    }
+                    if (archiveVersion <= currentCode) {
+                        file.delete()
+                    } else {
+                        return file
+                    }
+                } else {
+                    file.delete()
                 }
             }
         }
