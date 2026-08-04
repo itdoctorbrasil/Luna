@@ -14,6 +14,7 @@ import com.example.ui.components.AppDownloadDialog
 import com.example.ui.components.AppUninstallDialog
 import com.example.ui.components.AppsGridDrawer
 import com.example.ui.components.BackgroundCarousel
+import com.example.ui.components.BootVideoPlayer
 import com.example.ui.components.MainDock
 import com.example.ui.components.OtaUpdateDialog
 import com.example.ui.components.TopHeaderBar
@@ -37,6 +38,7 @@ fun LunaLauncherScreen(
     val appToUninstall by viewModel.appToUninstall.collectAsState()
     val showVoiceSearchDialog by viewModel.showVoiceSearchDialog.collectAsState()
     val downloadState by viewModel.downloadState.collectAsState()
+    val showBootVideo by viewModel.showBootVideo.collectAsState()
 
     val installedPackageSet = remember(installedApps) {
         installedApps.map { it.packageName }.toSet()
@@ -121,6 +123,12 @@ fun LunaLauncherScreen(
             isVisible = showVoiceSearchDialog,
             onSearch = { query -> viewModel.performSearch(query) },
             onDismiss = { viewModel.dismissVoiceSearchDialog() }
+        )
+
+        // Welcome / Boot Video Player overlay on launcher start
+        BootVideoPlayer(
+            isVisible = showBootVideo,
+            onFinished = { viewModel.dismissBootVideo() }
         )
     }
 }

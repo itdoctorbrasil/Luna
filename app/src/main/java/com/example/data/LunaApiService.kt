@@ -12,16 +12,33 @@ import java.util.concurrent.TimeUnit
 class LunaApiService {
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
+        .connectTimeout(12, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .addInterceptor { chain ->
+            val original = chain.request()
+            val request = original.newBuilder()
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android TV; LunaLauncher/1.0)")
+                .build()
+            chain.proceed(request)
+        }
         .build()
 
     companion object {
         private const val TAG = "LunaApiService"
+        private const val BASE_URL = "https://itdoctorbrasil.site/Launchers/Luna/"
         private const val BANNERS_URL = "https://itdoctorbrasil.site/Launchers/Luna/banners/img.json"
         private const val APPS_URL_PRIMARY = "https://itdoctorbrasil.site/Launchers/Luna/apps.json"
         private const val APPS_URL_SECONDARY = "https://itdoctorbrasil.site/Launchers/Luna/app.json"
+        private const val APPS_URL_TERTIARY = "https://itdoctorbrasil.site/Launchers/Luna/apps_fixed.json"
         private const val VERSION_URL = "https://itdoctorbrasil.site/Launchers/Luna/version.json"
+    }
+
+    private fun resolveUrl(url: String): String {
+        val trimmed = url.trim()
+        if (trimmed.isEmpty()) return ""
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed
+        if (trimmed.startsWith("/")) return "https://itdoctorbrasil.site$trimmed"
+        return "$BASE_URL$trimmed"
     }
 
     suspend fun fetchBanners(): List<BannerItem> = withContext(Dispatchers.IO) {
@@ -49,29 +66,33 @@ class LunaApiService {
                 val jsonArray = JSONArray(trimmed)
                 for (i in 0 until jsonArray.length()) {
                     val item = jsonArray.opt(i)
-                    if (item is String) {
-                        banners.add(BannerItem(id = "banner_$i", imageUrl = item))
+                    if (item is String && item.isNotBlank()) {
+                        banners.add(BannerItem(id = "banner_$i", imageUrl = resolveUrl(item)))
                     } else if (item is JSONObject) {
-                        val url = item.optString("url", item.optString("image", item.optString("img", "")))
+                        val url = item.optString("url", item.optString("image", item.optString("img", item.optString("banner", item.optString("src", item.optString("path", ""))))))
                         val title = item.optString("title", item.optString("name", ""))
-                        if (url.isNotEmpty()) {
-                            banners.add(BannerItem(id = "banner_$i", imageUrl = url, title = title))
+                        if (url.isNotBlank()) {
+                            banners.add(BannerItem(id = "banner_$i", imageUrl = resolveUrl(url), title = title))
                         }
                     }
                 }
             } else if (trimmed.startsWith("{")) {
                 val jsonObject = JSONObject(trimmed)
-                val imagesArray = jsonObject.optJSONArray("images") ?: jsonObject.optJSONArray("banners")
+                val imagesArray = jsonObject.optJSONArray("images")
+                    ?: jsonObject.optJSONArray("banners")
+                    ?: jsonObject.optJSONArray("data")
+                    ?: jsonObject.optJSONArray("items")
+
                 if (imagesArray != null) {
                     for (i in 0 until imagesArray.length()) {
                         val item = imagesArray.opt(i)
-                        if (item is String) {
-                            banners.add(BannerItem(id = "banner_$i", imageUrl = item))
+                        if (item is String && item.isNotBlank()) {
+                            banners.add(BannerItem(id = "banner_$i", imageUrl = resolveUrl(item)))
                         } else if (item is JSONObject) {
-                            val url = item.optString("url", item.optString("image", ""))
-                            val title = item.optString("title", "")
-                            if (url.isNotEmpty()) {
-                                banners.add(BannerItem(id = "banner_$i", imageUrl = url, title = title))
+                            val url = item.optString("url", item.optString("image", item.optString("img", item.optString("banner", item.optString("src", item.optString("path", ""))))))
+                            val title = item.optString("title", item.optString("name", ""))
+                            if (url.isNotBlank()) {
+                                banners.add(BannerItem(id = "banner_$i", imageUrl = resolveUrl(url), title = title))
                             }
                         }
                     }
@@ -89,7 +110,7 @@ class LunaApiService {
 
     suspend fun fetchDockApps(): List<DockAppItem> = withContext(Dispatchers.IO) {
         val dockApps = mutableListOf<DockAppItem>()
-        val urlsToTry = listOf(APPS_URL_PRIMARY, APPS_URL_SECONDARY)
+        val urlsToTry = listOf(APPS_URL_PRIMARY, APPS_URL_SECONDARY, APPS_URL_TERTIARY)
 
         for (url in urlsToTry) {
             try {
@@ -174,13 +195,17 @@ class LunaApiService {
 
     private fun parseSingleAppObject(obj: JSONObject, defaultIndex: Int): OrderedDockApp {
         val rawId = obj.optString("id", "")
-        val title = obj.optString("name", obj.optString("title", obj.optString("label", obj.optString("app_name", "App"))))
+        val title = obj.optString("name", obj.optString("title", obj.optString("label", obj.optString("app_name", obj.optString("appName", "App")))))
         val packageName = obj.optString("package_name", obj.optString("packageName", obj.optString("package", obj.optString("pkg", ""))))
-        val iconUrl = obj.optString("icon", obj.optString("iconUrl", obj.optString("icon_url", obj.optString("image", ""))))
-        val bannerUrl = obj.optString("banner", obj.optString("bannerUrl", obj.optString("banner_url", "")))
-        val actionUrl = obj.optString("download_url", obj.optString("downloadUrl", obj.optString("url", obj.optString("action", obj.optString("actionUrl", obj.optString("apk", ""))))))
+        val rawIconUrl = obj.optString("icon", obj.optString("iconUrl", obj.optString("icon_url", obj.optString("image", obj.optString("img", obj.optString("logo", obj.optString("src", "")))))))
+        val rawBannerUrl = obj.optString("banner", obj.optString("bannerUrl", obj.optString("banner_url", obj.optString("bg", ""))))
+        val rawActionUrl = obj.optString("download_url", obj.optString("downloadUrl", obj.optString("download", obj.optString("url", obj.optString("link", obj.optString("file", obj.optString("apk", obj.optString("apk_url", obj.optString("action", obj.optString("actionUrl", obj.optString("path", "")))))))))))
 
         val finalId = if (rawId.isNotEmpty()) rawId else "dock_app_${packageName.ifEmpty { defaultIndex.toString() }}"
+
+        val iconUrl = if (rawIconUrl.isNotBlank()) resolveUrl(rawIconUrl) else ""
+        val bannerUrl = if (rawBannerUrl.isNotBlank()) resolveUrl(rawBannerUrl) else ""
+        val actionUrl = if (rawActionUrl.isNotBlank()) resolveUrl(rawActionUrl) else ""
 
         var order = defaultIndex
         if (obj.has("order")) {
@@ -217,14 +242,14 @@ class LunaApiService {
                         val obj = JSONObject(bodyString.trim())
                         val versionCode = obj.optInt("versionCode", obj.optInt("version_code", obj.optInt("version", 1)))
                         val versionName = obj.optString("versionName", obj.optString("version_name", "1.0.0"))
-                        val url = obj.optString("url", obj.optString("downloadUrl", obj.optString("link", "")))
+                        val rawUrl = obj.optString("url", obj.optString("downloadUrl", obj.optString("link", "")))
                         val changelog = obj.optString("changelog", obj.optString("notes", obj.optString("description", "")))
                         val force = obj.optBoolean("force", obj.optBoolean("forceUpdate", false))
 
                         return@withContext OtaVersionInfo(
                             versionCode = versionCode,
                             versionName = versionName,
-                            url = url,
+                            url = if (rawUrl.isNotBlank()) resolveUrl(rawUrl) else "",
                             changelog = changelog,
                             forceUpdate = force
                         )

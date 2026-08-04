@@ -72,6 +72,20 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
     private val _downloadState = MutableStateFlow(AppDownloadProgress())
     val downloadState: StateFlow<AppDownloadProgress> = _downloadState.asStateFlow()
 
+    private val _showBootVideo = MutableStateFlow(checkHasBootVideo())
+    val showBootVideo: StateFlow<Boolean> = _showBootVideo.asStateFlow()
+
+    private fun checkHasBootVideo(): Boolean {
+        val ctx = getApplication<Application>()
+        val res1 = ctx.resources.getIdentifier("bootvideo", "raw", ctx.packageName)
+        val res2 = ctx.resources.getIdentifier("welcome", "raw", ctx.packageName)
+        return (res1 != 0 || res2 != 0)
+    }
+
+    fun dismissBootVideo() {
+        _showBootVideo.value = false
+    }
+
     private var downloadJob: kotlinx.coroutines.Job? = null
     private val okHttpClient = okhttp3.OkHttpClient.Builder()
         .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
@@ -249,10 +263,13 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
         if (app.packageName.isNotEmpty() && appManager.isAppInstalled(app.packageName)) {
             appManager.launchApp(app.packageName)
         } else {
-            val url = if (app.actionUrl.startsWith("http")) {
-                app.actionUrl
-            } else {
-                "https://itdoctorbrasil.site/Launchers/Luna/apks/${app.packageName}.apk"
+            val rawUrl = app.actionUrl.trim()
+            val url = when {
+                rawUrl.startsWith("http://") || rawUrl.startsWith("https://") -> rawUrl
+                rawUrl.startsWith("/") -> "https://itdoctorbrasil.site$rawUrl"
+                rawUrl.isNotEmpty() -> "https://itdoctorbrasil.site/Launchers/Luna/$rawUrl"
+                app.packageName.isNotEmpty() -> "https://itdoctorbrasil.site/Launchers/Luna/apks/${app.packageName}.apk"
+                else -> "https://itdoctorbrasil.site/Launchers/Luna/apks/${app.id}.apk"
             }
             startDownload(
                 title = app.title,
@@ -277,6 +294,49 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startDownload(title: String, packageName: String, downloadUrl: String, isOta: Boolean = false) {
         downloadJob?.cancel()
+
+        val fileName = if (isOta) {
+            val otaVer = _otaInfo.value?.versionCode ?: "latest"
+            "update_ota_$otaVer.apk"
+        } else {
+            "${packageName.ifEmpty { "app" }}.apk"
+        }
+
+        val downloadDir = java.io.File(getApplication<Application>().cacheDir, "apks")
+        if (!downloadDir.exists()) downloadDir.mkdirs()
+        val outputFile = java.io.File(downloadDir, fileName)
+
+        // Pre-check: Verify if APK is already downloaded and valid
+        if (outputFile.exists() && outputFile.length() > 0) {
+            val pm = getApplication<Application>().packageManager
+            val pkgInfo = try {
+                pm.getPackageArchiveInfo(outputFile.absolutePath, 0)
+            } catch (e: Exception) {
+                null
+            }
+
+            if (pkgInfo != null) {
+                // File is already completely downloaded and is a valid APK! Skip re-downloading.
+                _downloadState.value = AppDownloadProgress(
+                    title = title,
+                    packageName = packageName,
+                    downloadUrl = downloadUrl,
+                    isOtaUpdate = isOta,
+                    isVisible = true,
+                    isDownloading = false,
+                    isDownloadComplete = true,
+                    progressPercent = 100,
+                    downloadedBytes = outputFile.length(),
+                    totalBytes = outputFile.length(),
+                    downloadedFile = outputFile
+                )
+                return
+            } else {
+                // Corrupted or incomplete file, delete it
+                outputFile.delete()
+            }
+        }
+
         _downloadState.value = AppDownloadProgress(
             title = title,
             packageName = packageName,
@@ -286,16 +346,13 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
             isDownloading = true,
             progressPercent = 0,
             downloadedBytes = 0,
-            totalBytes = 0
+            totalBytes = 0,
+            downloadedFile = outputFile
         )
 
         downloadJob = viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             val scope = this
             try {
-                val fileName = if (isOta) "update_${System.currentTimeMillis()}.apk" else "${packageName.ifEmpty { "app" }}.apk"
-                val downloadDir = java.io.File(getApplication<Application>().cacheDir, "apks")
-                if (!downloadDir.exists()) downloadDir.mkdirs()
-                val outputFile = java.io.File(downloadDir, fileName)
                 if (outputFile.exists()) outputFile.delete()
 
                 if (downloadUrl.isBlank()) {
@@ -358,8 +415,12 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
                     downloadedFile = outputFile
                 )
             } catch (e: kotlinx.coroutines.CancellationException) {
+                if (outputFile.exists() && !_downloadState.value.isDownloadComplete) {
+                    outputFile.delete()
+                }
                 _downloadState.value = AppDownloadProgress()
             } catch (e: Exception) {
+                if (outputFile.exists()) outputFile.delete()
                 android.util.Log.e("LunaViewModel", "Download error: ${e.message}", e)
                 _downloadState.value = _downloadState.value.copy(
                     isDownloading = false,
@@ -370,6 +431,11 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun cancelDownload() {
+        val state = _downloadState.value
+        val file = state.downloadedFile
+        if (state.isDownloading && file != null && file.exists()) {
+            file.delete()
+        }
         downloadJob?.cancel()
         downloadJob = null
         _downloadState.value = AppDownloadProgress()
@@ -389,6 +455,10 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun onBackPressed(): Boolean {
+        if (_showBootVideo.value) {
+            _showBootVideo.value = false
+            return true
+        }
         if (_downloadState.value.isVisible) {
             cancelDownload()
             return true

@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -29,9 +30,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -42,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.ui.AppDownloadProgress
+import kotlinx.coroutines.delay
 import java.util.Locale
 
 @Composable
@@ -52,6 +63,17 @@ fun AppDownloadDialog(
     onDismiss: () -> Unit
 ) {
     if (!downloadProgress.isVisible) return
+
+    val primaryFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(downloadProgress.isVisible, downloadProgress.isDownloading, downloadProgress.isDownloadComplete) {
+        if (downloadProgress.isVisible) {
+            delay(100)
+            try {
+                primaryFocusRequester.requestFocus()
+            } catch (_: Exception) {}
+        }
+    }
 
     val brandColor = when {
         downloadProgress.errorMessage != null -> Color(0xFFEF4444)
@@ -74,7 +96,7 @@ fun AppDownloadDialog(
     ) {
         Box(
             modifier = Modifier
-                .width(310.dp)
+                .width(320.dp)
                 .clip(RoundedCornerShape(20.dp))
                 .background(
                     brush = Brush.verticalGradient(
@@ -85,11 +107,11 @@ fun AppDownloadDialog(
                     )
                 )
                 .border(
-                    width = 1.dp,
+                    width = 1.5.dp,
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            brandColor.copy(alpha = 0.6f),
-                            Color(0xFF3B82F6).copy(alpha = 0.3f)
+                            brandColor.copy(alpha = 0.8f),
+                            Color(0xFF3B82F6).copy(alpha = 0.4f)
                         )
                     ),
                     shape = RoundedCornerShape(20.dp)
@@ -107,7 +129,7 @@ fun AppDownloadDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (downloadProgress.isOtaUpdate) "ATUALIZAÇÃO" else "DOWNLOAD DE APP",
+                        text = if (downloadProgress.isOtaUpdate) "ATUALIZAÇÃO DE SISTEMA" else "DOWNLOAD DE APP",
                         color = brandColor,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.ExtraBold,
@@ -271,85 +293,153 @@ fun AppDownloadDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Action Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                // Frame container enclosing the buttons
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color.White.copy(alpha = 0.05f))
+                        .border(
+                            width = 1.dp,
+                            color = brandColor.copy(alpha = 0.4f),
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                        .padding(8.dp)
                 ) {
-                    if (downloadProgress.isDownloading) {
-                        Button(
-                            onClick = onCancel,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFDC2626),
-                                contentColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(38.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (downloadProgress.isDownloading) {
+                            var isFocused by remember { mutableStateOf(false) }
+                            val scale by animateFloatAsState(
+                                targetValue = if (isFocused) 1.03f else 1f,
+                                label = "cancel_scale"
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Cancelar",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    } else if (downloadProgress.isDownloadComplete) {
-                        OutlinedButton(
-                            onClick = onDismiss,
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = Color.White.copy(alpha = 0.8f)
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(38.dp)
-                        ) {
-                            Text("Fechar", fontSize = 13.sp)
-                        }
 
-                        Button(
-                            onClick = onInstall,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF10B981),
-                                contentColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier
-                                .weight(1.3f)
-                                .height(38.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.InstallMobile,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
+                            Button(
+                                onClick = onCancel,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isFocused) Color(0xFFEF4444) else Color(0xFFDC2626),
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(42.dp)
+                                    .scale(scale)
+                                    .onFocusChanged { isFocused = it.isFocused }
+                                    .border(
+                                        width = if (isFocused) 2.5.dp else 1.dp,
+                                        color = if (isFocused) Color.White else Color.White.copy(alpha = 0.2f),
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    .focusRequester(primaryFocusRequester)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Cancelar",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        } else if (downloadProgress.isDownloadComplete) {
+                            var isDismissFocused by remember { mutableStateOf(false) }
+                            val dismissScale by animateFloatAsState(
+                                targetValue = if (isDismissFocused) 1.03f else 1f,
+                                label = "dismiss_scale"
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Instalar",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
+
+                            OutlinedButton(
+                                onClick = onDismiss,
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = Color.White
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(42.dp)
+                                    .scale(dismissScale)
+                                    .onFocusChanged { isDismissFocused = it.isFocused }
+                                    .border(
+                                        width = if (isDismissFocused) 2.5.dp else 1.dp,
+                                        color = if (isDismissFocused) Color.White else Color.White.copy(alpha = 0.3f),
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                            ) {
+                                Text("Fechar", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            }
+
+                            var isInstallFocused by remember { mutableStateOf(false) }
+                            val installScale by animateFloatAsState(
+                                targetValue = if (isInstallFocused) 1.03f else 1f,
+                                label = "install_scale"
                             )
-                        }
-                    } else if (downloadProgress.errorMessage != null) {
-                        Button(
-                            onClick = onDismiss,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White.copy(alpha = 0.15f),
-                                contentColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(38.dp)
-                        ) {
-                            Text("Fechar", fontSize = 13.sp)
+
+                            Button(
+                                onClick = onInstall,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isInstallFocused) Color(0xFF059669) else Color(0xFF10B981),
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier
+                                    .weight(1.3f)
+                                    .height(42.dp)
+                                    .scale(installScale)
+                                    .onFocusChanged { isInstallFocused = it.isFocused }
+                                    .border(
+                                        width = if (isInstallFocused) 2.5.dp else 1.dp,
+                                        color = if (isInstallFocused) Color.White else Color.White.copy(alpha = 0.3f),
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    .focusRequester(primaryFocusRequester)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.InstallMobile,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Instalar",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        } else if (downloadProgress.errorMessage != null) {
+                            var isCloseFocused by remember { mutableStateOf(false) }
+                            val closeScale by animateFloatAsState(
+                                targetValue = if (isCloseFocused) 1.03f else 1f,
+                                label = "close_scale"
+                            )
+
+                            Button(
+                                onClick = onDismiss,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isCloseFocused) Color.White.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.15f),
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(42.dp)
+                                    .scale(closeScale)
+                                    .onFocusChanged { isCloseFocused = it.isFocused }
+                                    .border(
+                                        width = if (isCloseFocused) 2.5.dp else 1.dp,
+                                        color = if (isCloseFocused) Color.White else Color.White.copy(alpha = 0.2f),
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    .focusRequester(primaryFocusRequester)
+                            ) {
+                                Text("Fechar", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -357,4 +447,5 @@ fun AppDownloadDialog(
         }
     }
 }
+
 
