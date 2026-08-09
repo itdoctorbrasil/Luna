@@ -1,6 +1,8 @@
 package com.example.ui
 
 import android.app.Application
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.AppManager
@@ -48,8 +50,16 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
     val systemStatus: StateFlow<SystemStatus> = systemMonitor.status
     val installedApps: StateFlow<List<InstalledApp>> = appManager.installedApps
 
+    // Banners / Background Carousel State
     private val _banners = MutableStateFlow<List<BannerItem>>(emptyList())
     val banners: StateFlow<List<BannerItem>> = _banners.asStateFlow()
+
+    // Lista de imagens de fundo para o carrossel (vinda da API /img.json)
+    private val _backgroundImages = MutableStateFlow<List<String>>(emptyList())
+    val backgroundImages: StateFlow<List<String>> = _backgroundImages.asStateFlow()
+
+    private val _overlayOpacity = MutableStateFlow(0.35f)
+    val overlayOpacity: StateFlow<Float> = _overlayOpacity.asStateFlow()
 
     private val _currentBannerIndex = MutableStateFlow(0)
     val currentBannerIndex: StateFlow<Int> = _currentBannerIndex.asStateFlow()
@@ -149,7 +159,7 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
     private fun startPeriodicSyncTimer() {
         viewModelScope.launch {
             while (true) {
-                delay(30000) // 30 seconds periodic check
+                delay(30000) // 30 segundos
                 try {
                     syncAllRemoteData(isInitial = false)
                 } catch (e: Exception) {
@@ -190,16 +200,23 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun syncAllRemoteData(isInitial: Boolean = false) {
         appManager.loadInstalledApps()
 
-        // 1. Fetch remote banners (img.json)
+        // 1. Sincroniza Banners e a Galeria de Backgrounds enviada pelo Painel
         val remoteBanners = apiService.fetchBanners()
         if (remoteBanners.isNotEmpty()) {
             _banners.value = remoteBanners
+            // Extrai as URLs de imagem para o carrossel de fundos
+            val extractedImages = remoteBanners.map { it.imageUrl }.filter { it.isNotBlank() }
+            if (extractedImages.isNotEmpty()) {
+                _backgroundImages.value = extractedImages
+            }
         } else if (_banners.value.isEmpty()) {
-            _banners.value = listOf(
+            val fallbacks = listOf(
                 BannerItem(id = "fallback_1", imageUrl = "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1920&q=80"),
                 BannerItem(id = "fallback_2", imageUrl = "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1920&q=80"),
                 BannerItem(id = "fallback_3", imageUrl = "https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1920&q=80")
             )
+            _banners.value = fallbacks
+            _backgroundImages.value = fallbacks.map { it.imageUrl }
         }
 
         // 2. Fetch dock apps (apps.json)
@@ -222,36 +239,46 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
                 val cleanTitle = item.title.lowercase().trim()
                 val cleanPkg = item.packageName.lowercase().trim()
 
-                val matchedName = when {
-                    cleanId == "unitv" || cleanTitle.contains("unitv") -> "unitv"
-                    cleanId.contains("youtube") || cleanTitle.contains("youtube") || cleanPkg.contains("youtube") -> "youtube"
-                    cleanId.contains("netflix") || cleanTitle.contains("netflix") || cleanPkg.contains("netflix") -> "netflix"
-                    cleanId.contains("prime") || cleanTitle.contains("prime") || cleanPkg.contains("amazon") -> "prime"
-                    cleanId.contains("disney") || cleanTitle.contains("disney") || cleanPkg.contains("disney") -> "disney"
-                    cleanId.contains("play") || cleanTitle.contains("play") || cleanPkg.contains("vending") -> "playstore"
-                    else -> cleanId
+                val drawableName = when {
+                    cleanTitle.contains("unitv") || cleanPkg.contains("unitv") || cleanId.contains("unitv") -> "unitv"
+                    cleanTitle.contains("velo") || cleanPkg.contains("veloplay") || cleanId.contains("velo") -> "veloplay"
+                    cleanTitle.contains("youcine") || cleanPkg.contains("youcine") || cleanId.contains("youcine") -> "youcine"
+                    cleanTitle.contains("youtube") || cleanPkg.contains("youtube") -> "youtube"
+                    cleanTitle.contains("netflix") || cleanPkg.contains("netflix") -> "netflix"
+                    cleanTitle.contains("prime") || cleanPkg.contains("amazon") -> "prime"
+                    cleanTitle.contains("disney") || cleanPkg.contains("disney") -> "disney"
+                    cleanTitle.contains("play") || cleanPkg.contains("vending") -> "playstore"
+                    cleanTitle.contains("bonito") || cleanPkg.contains("bonito") -> "bonitotv"
+                    cleanTitle.contains("estrela") || cleanPkg.contains("estrela") -> "estrela"
+                    cleanTitle.contains("newone") || cleanPkg.contains("newone") -> "newone"
+                    cleanTitle.contains("tunein") || cleanPkg.contains("tunein") -> "tuneinradio"
+                    else -> ""
                 }
 
-                val resId = if (matchedName.isNotEmpty()) {
-                    context.resources.getIdentifier(matchedName, "drawable", context.packageName)
+                val resId = if (drawableName.isNotEmpty()) {
+                    context.resources.getIdentifier(drawableName, "drawable", context.packageName)
                 } else 0
 
-                val localDrawable = if (resId != 0) {
+                var localDrawable = if (resId != 0) {
                     try {
-                        androidx.core.content.ContextCompat.getDrawable(context, resId)
+                        ContextCompat.getDrawable(context, resId)
                     } catch (_: Exception) { null }
                 } else null
 
-                val realIcon = if (item.packageName.isNotEmpty()) {
-                    appManager.getAppIconDrawable(item.packageName)
-                } else null
+                if (localDrawable == null && item.packageName.isNotEmpty()) {
+                    localDrawable = appManager.getAppIconDrawable(item.packageName)
+                }
 
-                item.copy(iconDrawable = localDrawable ?: realIcon)
+                if (localDrawable != null) {
+                    item.copy(iconUrl = "", bannerUrl = "", iconDrawable = localDrawable)
+                } else {
+                    item
+                }
             }
             _dockApps.value = enrichedDockApps
         }
 
-        // 3. Check OTA updates (version.json)
+        // 3. OTA updates (version.json)
         val versionInfo = apiService.fetchOtaVersion()
         if (versionInfo != null) {
             _otaInfo.value = versionInfo
@@ -265,7 +292,7 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
     private fun startBannerCarouselTimer() {
         viewModelScope.launch {
             while (true) {
-                delay(10000) // Rotate banner every 10 seconds
+                delay(10000) // Transição a cada 10 segundos
                 val list = _banners.value
                 if (list.isNotEmpty()) {
                     _currentBannerIndex.value = (_currentBannerIndex.value + 1) % list.size
@@ -411,7 +438,6 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
         if (!downloadDir.exists()) downloadDir.mkdirs()
         val outputFile = java.io.File(downloadDir, fileName)
 
-        // Pre-check: Verify if APK is already downloaded and valid
         if (outputFile.exists() && outputFile.length() > 10240) {
             val pm = getApplication<Application>().packageManager
             val pkgInfo = try {
@@ -464,7 +490,6 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             if (isOta) {
-                // For OTA, the download URL is retrieved dynamically from version.json
                 if (candidateUrls.isEmpty()) {
                     val freshOta = apiService.fetchOtaVersion()
                     if (freshOta != null && freshOta.url.isNotBlank()) {
@@ -616,7 +641,6 @@ class LunaViewModel(application: Application) : AndroidViewModel(application) {
             _activeSection.value = LauncherSection.MAIN_DOCK
             return true
         }
-        // Always return true to consume back key and prevent exiting launcher
         return true
     }
 
