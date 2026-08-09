@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.example.data.BannerItem
 
@@ -20,6 +21,7 @@ import com.example.data.BannerItem
 fun BackgroundCarousel(
     banners: List<BannerItem>,
     currentIndex: Int,
+    overlayOpacity: Float = 0.35f, // Opacidade configurada no Painel Web
     modifier: Modifier = Modifier
 ) {
     val currentBanner = banners.getOrNull(currentIndex) ?: banners.firstOrNull()
@@ -35,33 +37,37 @@ fun BackgroundCarousel(
         )
     }
 
-    val overlayBrush = remember {
+    val overlayBrush = remember(overlayOpacity) {
+        val safeOpacity = overlayOpacity.coerceIn(0f, 0.85f)
         Brush.verticalGradient(
             colors = listOf(
-                Color.Black.copy(alpha = 0.5f),
-                Color.Transparent,
-                Color.Black.copy(alpha = 0.75f)
+                Color.Black.copy(alpha = safeOpacity + 0.15f),
+                Color.Black.copy(alpha = safeOpacity),
+                Color.Black.copy(alpha = safeOpacity + 0.25f)
             )
         )
     }
 
     Box(modifier = modifier.fillMaxSize()) {
+        // Transição suave de Crossfade entre imagens do carrossel
         Crossfade(
             targetState = currentBanner?.imageUrl,
-            animationSpec = tween(durationMillis = 600),
+            animationSpec = tween(durationMillis = 800),
             label = "banner_crossfade"
         ) { url ->
             if (!url.isNullOrEmpty()) {
                 val request = remember(url) {
                     ImageRequest.Builder(context)
                         .data(url)
+                        .memoryCachePolicy(CachePolicy.DISABLED) // Evita que a imagem antiga fique presa na memória
+                        .diskCachePolicy(CachePolicy.DISABLED)   // Evita ler imagens desatualizadas do disco
                         .crossfade(true)
                         .allowHardware(true)
                         .build()
                 }
                 AsyncImage(
                     model = request,
-                    contentDescription = "Background Wallpaper",
+                    contentDescription = "Background Wallpaper Carousel",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
@@ -74,7 +80,7 @@ fun BackgroundCarousel(
             }
         }
 
-        // Overlay gradient for maximum readability of TV top bar and dock
+        // Camada escura ajustável para legibilidade da interface da TV
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -82,4 +88,3 @@ fun BackgroundCarousel(
         )
     }
 }
-

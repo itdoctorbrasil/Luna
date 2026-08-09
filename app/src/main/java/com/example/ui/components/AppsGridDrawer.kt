@@ -133,7 +133,7 @@ fun AppsGridDrawer(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "Grade de Apps Inferior",
+                                text = "Meus Apps",
                                 color = Color.White,
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold
@@ -180,7 +180,11 @@ fun AppsGridDrawer(
                         contentPadding = PaddingValues(vertical = 12.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        itemsIndexed(installedApps, key = { _, app -> app.packageName }) { index, app ->
+                        // Chave corrigida utilizando index + packageName para impedir colisões
+                        itemsIndexed(
+                            items = installedApps,
+                            key = { index, app -> "${index}_${app.packageName}" }
+                        ) { index, app ->
                             val focusRequester = focusRequesters.getOrNull(index) ?: remember { FocusRequester() }
                             AppGridItem(
                                 app = app,

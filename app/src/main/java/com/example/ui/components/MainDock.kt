@@ -52,6 +52,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -60,6 +61,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.drawable.toBitmap
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
+import com.example.R
 import com.example.data.DockAppItem
 
 // Card background gradient palettes inspired by Apple TV / JMGO Luna design
@@ -104,8 +108,10 @@ fun MainDock(
             horizontalArrangement = Arrangement.spacedBy(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Remote dock app tiles loaded directly from apps.json
-            itemsIndexed(dockApps, key = { _, app -> app.packageName.ifEmpty { app.id } }) { index, app ->
+            itemsIndexed(
+                items = dockApps,
+                key = { index, app -> "${index}_${app.id}_${app.packageName.ifEmpty { "no_pkg" }}" }
+            ) { index, app ->
                 val gradient = dockGradients[index % dockGradients.size]
                 val isInstalled = app.packageName.isNotEmpty() && installedPackageNames.contains(app.packageName)
                 val focusRequester = focusRequesters.getOrNull(index) ?: remember { FocusRequester() }
@@ -135,9 +141,6 @@ fun MainDock(
     }
 }
 
-/**
- * 1st Tile: The 4-square Apps Grid button as seen in JMGO_LUNA_SEM_FUNDO.png
- */
 @Composable
 fun AppsGridTile(
     onClick: () -> Unit,
@@ -190,7 +193,6 @@ fun AppsGridTile(
             .testTag("btn_apps_grid_tile"),
         contentAlignment = Alignment.Center
     ) {
-        // 2x2 colored squares grid icon (Cyan & Dark) as depicted in the original mockup
         Column(
             verticalArrangement = Arrangement.spacedBy(5.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -251,6 +253,9 @@ fun DockAppTile(
     )
 
     val shape = RoundedCornerShape(18.dp)
+    val context = LocalContext.current
+
+    val isSettingsPackage = app.packageName == "com.android.tv.settings" || app.packageName == "com.android.settings"
 
     Box(
         modifier = modifier
@@ -306,10 +311,39 @@ fun DockAppTile(
         contentAlignment = Alignment.Center
     ) {
         val imageUrl = app.bannerUrl.ifEmpty { app.iconUrl }
-        
+
+        // Se o painel Web enviou uma imagem/URL, prioriza a URL do servidor
         if (imageUrl.isNotEmpty()) {
+            val modelRequest = remember(imageUrl) {
+                ImageRequest.Builder(context)
+                    .data(imageUrl)
+                    .memoryCachePolicy(CachePolicy.DISABLED)
+                    .diskCachePolicy(CachePolicy.DISABLED)
+                    .crossfade(true)
+                    .apply {
+                        if (isSettingsPackage) {
+                            error(R.drawable.settings)
+                            fallback(R.drawable.settings)
+                        }
+                    }
+                    .build()
+            }
+
             AsyncImage(
-                model = imageUrl,
+                model = modelRequest,
+                contentDescription = app.title,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.FillBounds
+            )
+        } else if (isSettingsPackage) {
+            // Se for o app de configurações e NÃO tiver imagem vinda do painel Web, usa o drawable interno
+            Image(
+                bitmap = remember {
+                    val drawable = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.settings)
+                    drawable?.toBitmap(380, 180)?.asImageBitmap()
+                } ?: run {
+                    return@Box
+                },
                 contentDescription = app.title,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.FillBounds
